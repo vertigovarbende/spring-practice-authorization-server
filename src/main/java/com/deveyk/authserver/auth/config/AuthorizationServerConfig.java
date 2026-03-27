@@ -46,7 +46,7 @@ public class AuthorizationServerConfig {
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
         http
-                .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
+                .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())   // to avoid the conflict between request matchers - best practice
                 .with(authorizationServerConfigurer, authorizationServer ->
                         authorizationServer.oidc(Customizer.withDefaults()))
                 .exceptionHandling((exceptions) -> exceptions
@@ -77,24 +77,26 @@ public class AuthorizationServerConfig {
                 .clientId("public-client-id")
                 .clientSecret("{noop}public-client-secret")
                 .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE) // Add authorization grant type for authorization code
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN) // Add authorization grant type for refresh token
                 .redirectUri("http://localhost:8080/authorized")
                 .redirectUri("http://localhost:8080/login/oauth2/code/public-client-id")
                 .scope("read")
                 .scope("write")
-                .scope("offline_access")
-                .scope("openid")
+                .scope("offline_access") // Support offline access through refresh tokens - to get refresh token
+                .scope("openid") // OpenID Connect discovery - to get ID Token
                 .scope("profile")
                 .scope("email")
+                // Customize client settings
                 .clientSettings(ClientSettings.builder()
-                        .requireAuthorizationConsent(true)
-                        .requireProofKey(true)
+                        .requireAuthorizationConsent(true) // Require consent from the resource owner upon client authorization
+                        .requireProofKey(true) // to get PKCE (Proof Key for Code Exchange)
                         .build())
+                // Customize token settings
                 .tokenSettings(TokenSettings.builder()
                         .accessTokenFormat(OAuth2TokenFormat.SELF_CONTAINED)
-                        .accessTokenTimeToLive(Duration.ofHours(1))
-                        .refreshTokenTimeToLive(Duration.ofDays(7))
+                        .accessTokenTimeToLive(Duration.ofHours(1)) // Access token will expire in 1 day
+                        .refreshTokenTimeToLive(Duration.ofDays(7)) // refresh token will expire in 1 week
                         .reuseRefreshTokens(false)
                         .build())
                 .build();
