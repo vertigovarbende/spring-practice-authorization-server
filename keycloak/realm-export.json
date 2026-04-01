@@ -1,0 +1,300 @@
+{
+  "id": "auth-server",
+  "realm": "auth-server",
+  "displayName": "Spring Authorization Server",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 3600,
+  "refreshTokenMaxReuse": 0,
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Basic user role"    
+      },
+      {
+        "name": "manager",
+        "description": "Manager role"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator role"
+      }
+    ],
+    "client": {
+      "spring-app": [
+        {
+          "name": "api-read",
+          "description": "Read API access"
+        },
+        {
+          "name": "api-write",
+          "description": "Write API access"
+        },
+        {
+          "name": "api-admin",
+          "description": "Admin API access"
+        }
+      ]
+    }
+  },
+  "groups": [
+    {
+      "name": "engineering",
+      "path": "/engineering",
+      "subGroups": [
+        {
+          "name": "backend",
+          "path": "/engineering/backend",
+          "subGroups": []
+        },
+        {
+          "name": "frontend",
+          "path": "/engineering/frontend",
+          "subGroups": []
+        },
+        {
+          "name": "qa",
+          "path": "/engineering/qa",
+          "subGroups": []
+        }
+      ]
+    },
+    {
+      "name": "management",
+      "path": "/management",
+      "subGroups": [
+        {
+          "name": "finance",
+          "path": "/management/finance",
+          "subGroups": []
+        },
+        {
+          "name": "operations",
+          "path": "/management/operations",
+          "subGroups": []
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "spring-app",
+      "name": "Spring Authorization Server App",
+      "description": "Spring Boot application for practice authorization server topics",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "spring-app-secret",
+      "redirectUris": [
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "department",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "department",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "department",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "employee_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "employee_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "employee_id",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm-roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "client-roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "user",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "user@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "spring-app": [
+          "api-read"
+        ]
+      },
+      "groups": [
+        "/engineering/backend"
+      ],
+      "attributes": {
+        "department": [
+          "Engineering"
+        ],
+        "employee_id": [
+          "EMP-001"
+        ]
+      }
+    },
+    {
+      "username": "manager",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "manager@example.com",
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user",
+        "manager"
+      ],
+      "clientRoles": {
+        "spring-app": [
+          "api-read",
+          "api-write"
+        ]
+      },
+      "groups": [
+        "/management/finance"
+      ],
+      "attributes": {
+        "department": [
+          "Management"
+        ],
+        "employee_id": [
+          "EMP-002"
+        ]
+      }
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@example.com",
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user",
+        "manager",
+        "admin"
+      ],
+      "clientRoles": {
+        "spring-app": [
+          "api-read",
+          "api-write",
+          "api-admin"
+        ]
+      },
+      "groups": [
+        "/management"
+      ],
+      "attributes": {
+        "department": [
+          "IT"
+        ],
+        "employee_id": [
+          "EMP-003"
+        ]
+      }
+    }
+  ]
+}
