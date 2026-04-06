@@ -1,5 +1,6 @@
 package com.deveyk.authserver.auth.config;
 
+import com.deveyk.authserver.auth.keycloak.KeycloakJwtAuthenticationConverter;
 import com.deveyk.authserver.auth.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -35,30 +36,94 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomUserDetailsService userDetailsService;
+    private final KeycloakJwtAuthenticationConverter keycloakConverter;
+
+    @Bean
+    @Order(1)
+    public SecurityFilterChain oauth2LoginFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/auth/**", "/oauth2/**", "/login/**", "/logout")
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/auth/login").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .defaultSuccessUrl("/auth/success", true)
+                )
+                .logout(logout -> logout
+                        .logoutSuccessUrl("/auth/login")
+                        .invalidateHttpSession(true)
+                        .clearAuthentication(true)
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/**")
+                // Disable CSRF for stateless API
+                .csrf(csrf -> csrf.disable())
+
+                // Authorization rules
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers("/api/public/**").permitAll()
+
+                        // Realm role-based authorization (Keycloak realm roles)
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/manager/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/api/user/**").hasRole("USER")
+
+                        // Client role-based authorization (Keycloak client roles)
+                        .requestMatchers("/api/resource/read/**").hasAuthority("CLIENT_ROLE_API_READ")
+                        .requestMatchers("/api/resource/write/**").hasAuthority("CLIENT_ROLE_API_WRITE")
+                        .requestMatchers("/api/resource/admin/**").hasAuthority("CLIENT_ROLE_API_ADMIN")
+
+                        // Group-based authorization (Keycloak groups)
+                        .requestMatchers("/api/engineering/**").hasAnyAuthority(
+                                "GROUP_ENGINEERING",
+                                "GROUP_ENGINEERING_BACKEND",
+                                "GROUP_ENGINEERING_FRONTEND"
+                        )
+                        .requestMatchers("/api/management/**").hasAuthority("GROUP_MANAGEMENT")
+
+                        // Claims demo endpoints
+                        .requestMatchers("/api/claims/**").authenticated()
+
+                        // All other requests require authentication
+                        .anyRequest().authenticated()
+                )
+
+                // OAuth2 Resource Server with Keycloak JWT validation
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .jwtAuthenticationConverter(keycloakConverter)
+                        )
+                )
+
+                // Stateless session management (JWT-based)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                );
+
+        return http.build();
+    }
+
 
     @Bean
     @Order(3)
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationProvider authenticationProvider) throws Exception {
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
-                .httpBasic(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/oauth2/**").permitAll()
-                        .requestMatchers("/.well-known/**").permitAll()
-                        .requestMatchers("/login").permitAll()
-                        .requestMatchers("/authorized").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/manager/**").hasAnyRole("ADMIN", "MANAGER")
-                        .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers("/actuator/health").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-                .authenticationProvider(authenticationProvider);
+                .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
 
         return http.build();
     }
@@ -68,26 +133,5 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
-
-    @Bean
-    public Converter<Jwt, JwtAuthenticationToken> jwtAuthenticationConverter() {
-        return jwt -> {
-            List<String> roles = jwt.getClaimAsStringList("roles");
-            Collection<GrantedAuthority> authorities = roles.stream()
-                    .map(role -> role.startsWith("ROLE_") ? new SimpleGrantedAuthority(role) : new SimpleGrantedAuthority("ROLE_" + role))
-                    .collect(Collectors.toList());
-            return new JwtAuthenticationToken(jwt, authorities);
-        };
-    }
 }
+
