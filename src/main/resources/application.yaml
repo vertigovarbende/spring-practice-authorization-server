@@ -20,8 +20,28 @@ spring:
       properties:
         hibernate:
           format_sql: true
+
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080
+          issuer-uri: http://localhost:8180/realms/auth-server
+          jwk-set-uri: http://localhost:8180/realms/auth-server/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: spring-app
+            client-secret: spring-app-secret
+            scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8180/realms/auth-server
+            user-name-attribute: preferred_username
+
+keycloak:
+  auth-server-url: http://localhost:8180/realms/auth-server
+  realm: auth-server
+  resource: spring-app
+
